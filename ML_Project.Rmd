@@ -1,0 +1,202 @@
+---
+title: "Practical Machine Learning Course Project"
+output:
+  html_document: 
+    toc: true
+    toc_depth: 2
+---
+
+
+## Background and Goal 
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.    
+
+The goal of the project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. We will use the other variables to predict "classe". 
+
+
+## Data  
+  
+  
+##### Downloading from Data Source  
+  
+  
+Step One: download the datasets to the `data` folder in the current working directory.  
+```{r warning=FALSE, error=FALSE, message=FALSE}
+set.seed(42) #for reproducibility
+
+url1 <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+file1 <- "./data/pml-training.csv"
+file2  <- "./data/pml-testing.csv"
+
+if (!file.exists("./data")) {
+        dir.create("./data")
+}
+if (!file.exists(file1)) {
+        download.file(url1, destfile = file1, method = "curl")
+}
+if (!file.exists(file2)) {
+        download.file(url2, destfile = file2, method = "curl")
+}
+rm(url1, url2)
+```  
+  
+  
+##### Reading into R 
+  
+  
+Step Two: Read the 2 csv files into R as 2 data frames, `raw_train` and `raw_test`.  
+```{r warning=FALSE, error=FALSE, message=FALSE}
+raw_train <- read.csv(file1, stringsAsFactors = FALSE, na.strings=c("NA","#DIV/0!", ""))
+raw_test <- read.csv(file2, stringsAsFactors = FALSE, na.strings=c("NA","#DIV/0!", ""))
+```  
+Note that we converted the character strings `NA` and `#DIV/0!` to NA.
+
+The training data set contains `r dim(raw_train)[1]` observations and `r dim(raw_train)[2]` variables.  
+The testing data set contains `r dim(raw_test)[1]` observations and `r dim(raw_test)[2]` variables. 
+
+  
+  
+##### Cleaning Data 
+  
+  
+Step Three: Transform `raw_train` into a new data frame, `df_train`, that gets rid of variables that are not useful to us.  
+
+1.  Variables without much variety are not good predictors, so we'll drop any with near zero variance.
+```{r warning=FALSE, error=FALSE, message=FALSE}
+library(caret)
+nzv <- nearZeroVar(raw_train, saveMetrics = T)
+# sum(nzv$zeroVar)  # 9 variables with zero variance
+# sum(nzv$nzv)      # 36 varibles with near-zero variance
+df_train <- raw_train[, !nzv$nzv]
+rm(nzv)
+```
+
+At this point, the `df_train` data set contains `r dim(df_train)[1]` observations and `r dim(df_train)[2]` variables.  
+
+2.  We'll drop variables with a lot of missing values.   I arbitrarily selected 20% as the cut-off.   We'll drop variables if more than 20% of the observations are missing.  
+
+```{r warning=FALSE, error=FALSE, message=FALSE}
+keepCols <- colMeans(is.na(df_train)) < .20  #Keep if column has less than 20% NAs.
+df_train <- df_train[, keepCols]
+rm(keepCols)
+```
+
+At this point, the `df_train` data set contains `r dim(df_train)[1]` observations and `r dim(df_train)[2]` variables.  
+
+3. We'll drop variables unrelated to the exercises (the 1st 6 columns) and convert the `classe` variable to a factor.  
+
+```{r warning=FALSE, error=FALSE, message=FALSE}
+df_train <- df_train[, -(1:6)]
+df_train$classe <- as.factor(df_train$classe)
+```
+
+The final `df_train` data set contains `r dim(df_train)[1]` observations and `r dim(df_train)[2]` variables.  
+
+  
+  
+##### Partioning The Data
+  
+  
+Cross-validation algorithms can be summarized as follows:  
+        a. Reserve a small sample of the data set   
+        b. Build (or train) the model using the remaining part of the data set  
+        c. Test the effectiveness of the model on the the reserved sample of the data set. If the model works well on the test data set, then it’s good.
+   
+Step Four: We split `df_train` into a pure training data set with about 75% of the obserations and a testing data set with the remaining 25%.  These dataframes will be appropriately named `train` and `test`.  
+
+```{r warning=FALSE, error=FALSE, message=FALSE}
+tpart <- createDataPartition(y=df_train$classe, p=0.75, list=FALSE)
+train <- df_train[tpart, ] 
+test <- df_train[-tpart, ]
+rm(tpart)
+```
+
+As expected, the `train` data set contains about 75% of the observations (`r dim(train)[1]`) and the `test` data set contains the remaining 25% (`r dim(test)[1]`).
+ 
+
+## Modelling  
+
+We'll do two types of models and select the most accurate.
+  
+  
+##### Decision Tree    
+  
+  
+The 1st model will be a decision tree model.  It is built using the `rpart` function in the `rpart` package on the `train` data set
+
+```{r warning=FALSE, error=FALSE, message=FALSE}
+library(rpart)
+model_tree <- rpart(classe ~ ., data=train, method="class")
+library(rpart.plot)
+prp(model_tree, main="Classification Tree" )
+```  
+
+We then test the model's performance on the `test` data set.  
+
+```{r warning=FALSE, error=FALSE, message=FALSE}
+pred_tree <- predict(model_tree, test, type="class")
+cm_tree <- confusionMatrix(test$classe, pred_tree)
+cm_tree
+
+plot(cm_tree$table, col = cm_tree$byClass,
+     main = paste("Decision Tree Confusion Matrix"))
+
+acc_tree <- cm_tree$overall[1]
+ose_tree <- 1 - cm_tree$overall[1]
+```  
+
+The Estimated Accuracy of the Decision Tree Model is `r acc_tree[1]*100`% and the Estimated Out-of-Sample Error is `r ose_tree*100`%, which isn't very good.  
+
+  
+  
+
+##### Random Forest   
+  
+  
+The 2nd model will be a random forest model.  It is built using the `randomForest` package on the `train` data set.  It automatically selects important variables and is robust to correlated covariates & outliers in general.  
+
+```{r warning=FALSE, error=FALSE, message=FALSE}
+library(randomForest)
+model_rf <- randomForest(classe ~. , data=train)
+model_rf
+# importance(model_rf)  #to see listing of important variables.
+```
+
+We then test the model's performance on the `test` data set.  
+
+```{r warning=FALSE, error=FALSE, message=FALSE}
+pred_rf <- predict(model_rf, test, type = "class")
+
+cm_rf <- confusionMatrix(pred_rf, test$classe)
+cm_rf
+
+plot(cm_rf$table, col = cm_rf$byClass,
+     main = paste("Random Forest Confusion Matrix"))
+
+acc_rf <- cm_rf$overall[1]
+ose_rf <- 1 - cm_rf$overall[1]
+```
+
+The Estimated Accuracy of the Random Forest Model is `r acc_rf[1]*100`% and the Estimated Out-of-Sample Error is `r ose_rf*100`%.  As expected, the Random Forest model is much more accurate than the Decision Tree model.  
+  
+  
+## Conclusion   
+  
+  
+The Random Forest Model is our preferred model.  And we'll make output text files with our answers to the quiz off of the original `raw_test` data.
+
+```{r warning=FALSE, error=FALSE, message=FALSE}
+pred_rf2 <- predict(model_rf, raw_test, type = "class")
+
+make_quiz_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+make_quiz_files(pred_rf2)
+```
+
+
+
