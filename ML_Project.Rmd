@@ -183,19 +183,11 @@ The Estimated Accuracy of the Random Forest Model is `r acc_rf[1]*100`% and the 
 ## Conclusion   
   
   
-The Random Forest Model is our preferred model.  And we'll make output text files with our answers to the quiz off of the original `raw_test` data.
+The Random Forest Model is our preferred model.  And we can apply it to the `raw_test` data for the quiz.
 
 ```{r warning=FALSE, error=FALSE, message=FALSE}
 pred_rf2 <- predict(model_rf, raw_test, type = "class")
-
-make_quiz_files = function(x){
-  n = length(x)
-  for(i in 1:n){
-    filename = paste0("problem_id_",i,".txt")
-    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
-  }
-}
-make_quiz_files(pred_rf2)
+pred_rf2
 ```
 
 

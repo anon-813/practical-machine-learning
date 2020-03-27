@@ -390,17 +390,12 @@ ose_rf &lt;- 1 - cm_rf$overall[1]</code></pre>
 </div>
 <div id="conclusion" class="section level2">
 <h2>Conclusion</h2>
-<p>The Random Forest Model is our preferred model. And we’ll make output text files with our answers to the quiz off of the original <code>raw_test</code> data.</p>
+<p>The Random Forest Model is our preferred model. And we can apply it to the <code>raw_test</code> data for the quiz.</p>
 <pre class="r"><code>pred_rf2 &lt;- predict(model_rf, raw_test, type = &quot;class&quot;)
-
-make_quiz_files = function(x){
-  n = length(x)
-  for(i in 1:n){
-    filename = paste0(&quot;problem_id_&quot;,i,&quot;.txt&quot;)
-    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
-  }
-}
-make_quiz_files(pred_rf2)</code></pre>
+pred_rf2</code></pre>
+<pre><code>##  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
+##  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+## Levels: A B C D E</code></pre>
 </div>
 
 
